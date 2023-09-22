@@ -1,10 +1,18 @@
-import { seedUsers } from "./seedApp";
+import { clearDb } from "./clearDb";
+import { seedIntentions, seedQuestions, seedThreeToOne, seedUsers } from "./seedApp";
 
-seedUsers()
-  .then(() => {
+async function seedDatabase() {
+  try {
+    await clearDb();
+    await seedUsers();
+    await seedQuestions();
+    await seedIntentions();
+    await seedThreeToOne();
     console.log("seeded 🌱");
-  })
-  .catch((e) => {
+  } catch (e) {
     console.error("error seeding 🌱");
     console.error(e);
-  });
+  }
+}
+
+seedDatabase();
