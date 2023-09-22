@@ -7,7 +7,6 @@ import { IntentionObject, QuestionObject, ThreeToOneObject, UserObject } from ".
 
 const app = express();
 app.use(express.json());
-// All code should go below this line
 
 // Get Hello World
 app.get("/", (_req, res) => {
@@ -461,10 +460,6 @@ app.delete("/three-to-one/:id", async (req, res) => {
     res.status(500).json({ error: "internal server error"})
   }
 })
-
-
-// all your code should go above this line
-app.use(errorHandleMiddleware);
 
 const port = process.env.NODE_ENV === "test" ? 3001 : 3000;
 app.listen(port, () =>
