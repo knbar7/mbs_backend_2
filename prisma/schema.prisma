@@ -16,7 +16,7 @@ model User {
   email         String   @unique
   name          String?
   role          String
-  password      String
+  passwordHash  String
   question      Question[]
   intention     Intention[]
   threetoone    ThreeToOne[]

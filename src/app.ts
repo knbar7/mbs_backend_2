@@ -2,11 +2,44 @@ import express from "express";
 import { prisma } from "../prisma/prisma-instance";
 import "express-async-errors";
 import { IntentionObject, QuestionObject, ThreeToOneObject, UserObject } from "./types";
+import { authController } from "./router/auth.router";
+import { User } from "@prisma/client";
+import { encryptPassword } from "./encryption";
 
 
 
 const app = express();
+
+declare global {
+  namespace express {
+    interface Request {
+      user?: User;
+    }
+  }
+  namespace NodeJS {
+    export interface ProcessEnv {
+      DATABASE_URL: string;
+      JWT_SECRET: string;
+    }
+  }
+}
+
+["DATABASE_URL", "JWT_SECRET"].forEach((key) => {
+  if(process.env[key] === undefined) {
+    throw new Error(`Missing environment variable ${key}`);
+  }
+});
+
+const cors = require('cors')
 app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:5173', // Allow requests from this origin
+  methods: 'GET,POST,PUT,DELETE',    // Allow these HTTP methods
+  allowedHeaders: 'Content-Type,Authorization', // Allow these headers
+}));
+
+app.use(authController);
+
 
 // Get Hello World
 app.get("/", (_req, res) => {
@@ -105,19 +138,19 @@ app.get("/question/:id", async (req, res) => {
   }
 })
 
-//get a specific intention by ID
-app.get("/intention/:id", async (req, res) => {
-  const intentionId = parseInt(req.params.id, 10);
+//get all intentions submitted by a particular user
+app.get("/intention/author/:id", async (req, res) => {
+  const selectedId = parseInt(req.params.id, 10);
 
-  if(isNaN(intentionId)) {
+  if(isNaN(selectedId)) {
     res.status(400).json({ message: "ID must be a number"});
     return;
   }
 
   try{
-    const intention = await prisma.intention.findUnique({
+    const intention = await prisma.intention.findMany({
       where: {
-        id: intentionId
+        authorId: selectedId,
       }
     })
 
@@ -132,18 +165,18 @@ app.get("/intention/:id", async (req, res) => {
 })
 
 //get a specific three-to-one by ID
-app.get("/three-to-one/:id", async (req, res) => {
-  const threeToOneId = parseInt(req.params.id, 10);
+app.get("/three-to-one/author/:id", async (req, res) => {
+  const selectedId = parseInt(req.params.id, 10);
 
-  if(isNaN(threeToOneId)) {
+  if(isNaN(selectedId)) {
     res.status(400).json({ message: "ID must be a number"});
     return;
   }
 
   try{
-    const threeToOne = await prisma.threeToOne.findUnique({
+    const threeToOne = await prisma.threeToOne.findMany({
       where: {
-        id: threeToOneId
+        authorId: selectedId
       }
     })
 
@@ -155,7 +188,73 @@ app.get("/three-to-one/:id", async (req, res) => {
   } catch(error) {
     res.status(500).json({ message: "Internal Server Error"})
   }
-})
+});
+
+//get all questions by a specific user
+app.get("/question/user/:id", async (req, res) => {
+  const authorId = parseInt(req.params.id);
+
+  if (isNaN(authorId)) {
+    return res.status(400).json({ error: "Invalid user ID" });
+  }
+
+  try {
+    const authorQuestions = await prisma.question.findMany({
+      where: {
+        authorId: authorId
+      }
+    });
+
+    res.status(200).json(authorQuestions);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+//get all intentions by a specific user
+app.get("/intention/user/:id", async (req, res) => {
+  const authorId = parseInt(req.params.id);
+
+  if (isNaN(authorId)) {
+    return res.status(400).json({ error: "Invalid user ID" });
+  }
+
+  try {
+    const authorIntention = await prisma.intention.findMany({
+      where: {
+        authorId: authorId
+      }
+    });
+
+    res.status(200).json(authorIntention);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+//get all three-to-one by a specific user
+app.get("/three-to-one/user/:id", async (req, res) => {
+  const authorId = parseInt(req.params.id);
+
+  if (isNaN(authorId)) {
+    return res.status(400).json({ error: "Invalid user ID" });
+  }
+
+  try {
+    const authorThreeToOne = await prisma.threeToOne.findMany({
+      where: {
+        authorId: authorId
+      }
+    });
+
+    res.status(200).json(authorThreeToOne);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 //create new user
 app.post("/user", async (req, res) => {
@@ -204,7 +303,19 @@ app.post("/user", async (req, res) => {
     res.status(400).json({ errors });
   } else {
     try {
-      const userPost = await prisma.user.create({ data: newUser });
+      // Encrypt the password using bcrypt
+      const passwordHash = await encryptPassword(newUser.password);
+
+      // Create a new user with the encrypted password
+      const userPost = await prisma.user.create({
+        data: {
+          name: newUser.name,
+          email: newUser.email,
+          passwordHash: passwordHash, // Store the encrypted password
+          role: newUser.role,
+        },
+      });
+
       res.status(201).json(userPost);
     } catch (error) {
       console.error(error); // Log the error for debugging
@@ -212,6 +323,7 @@ app.post("/user", async (req, res) => {
     }
   }
 });
+
 
 
 //create new question
@@ -251,7 +363,7 @@ app.post("/question", async (req, res) => {
 app.post("/intention", async (req, res) => {
   const newIntention: IntentionObject = req.body;
   const errors = [];
-  const stringKeys = ['intention','cue1','cue2','cue3'];
+  const stringKeys = ['intention','cue1','cue2','cue3','authorId'];
   const validKeys = stringKeys;
 
   if(typeof newIntention.intention !== 'string'){
@@ -268,6 +380,10 @@ app.post("/intention", async (req, res) => {
 
   if(typeof newIntention.cue3 !== 'string'){
     errors.push('Cue must be a string')
+  }
+
+  if(typeof newIntention.authorId !== 'number'){
+    errors.push('ID must be a number')
   }
 
   const keys = Object.keys(newIntention);
@@ -310,6 +426,10 @@ app.post("/three-to-one", async (req, res) => {
 
   if(typeof newThreeToOne.improve1 !== 'string'){
     errors.push('Entry must be a sting')
+  }
+
+  if(typeof newThreeToOne.authorId !== 'number'){
+    errors.push('ID must be a number')
   }
 
   const keys = Object.keys(newThreeToOne);
@@ -461,7 +581,7 @@ app.delete("/three-to-one/:id", async (req, res) => {
   }
 })
 
-const port = process.env.NODE_ENV === "test" ? 3001 : 3000;
+const port = process.env.PORT || 3000;
 app.listen(port, () =>
   console.log(`
 🚀 Server ready at: http://localhost:${port}

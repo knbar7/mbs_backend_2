@@ -1,3 +1,4 @@
+import { encryptPassword } from "../src/encryption";
 import { prisma } from "./prisma-instance";
 
 export async function seedUsers() {
@@ -6,7 +7,7 @@ export async function seedUsers() {
         email: "kendall@email.com",
         name: "Kendall",
         role: "coach",
-        password: "password",
+        passwordHash: await encryptPassword("password"),
         },
     });
     const calvin = await prisma.user.create({
@@ -14,7 +15,7 @@ export async function seedUsers() {
         email: "calvin@email.com",
         name: "Calvin",
         role: "client",
-        password: "password",
+        passwordHash: await encryptPassword("password"),
         },
     });
     const kennady = await prisma.user.create({
@@ -22,7 +23,7 @@ export async function seedUsers() {
             email: "kennady@email.com",
             name: "Kennady",
             role: "client",
-            password: "password",
+            passwordHash: await encryptPassword("password"),
         }
     })
     const aza = await prisma.user.create({
@@ -30,7 +31,7 @@ export async function seedUsers() {
         email: "aza@email.com",
         name: "Aza",
         role: "client",
-        password: "password",
+        passwordHash: await encryptPassword("password"),
         },
     });
     const michelle = await prisma.user.create({
@@ -38,7 +39,7 @@ export async function seedUsers() {
         email: "michelle@email.com",
         name: "Michelle",
         role: "client",
-        password: "password",
+        passwordHash: await encryptPassword("password"),
         },
     });
 
