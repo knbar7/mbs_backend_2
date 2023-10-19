@@ -164,7 +164,7 @@ app.get("/intention/author/:id", async (req, res) => {
   }
 })
 
-//get a specific three-to-one by ID
+//get all three-to-one by a particular user
 app.get("/three-to-one/author/:id", async (req, res) => {
   const selectedId = parseInt(req.params.id, 10);
 
@@ -206,50 +206,6 @@ app.get("/question/user/:id", async (req, res) => {
     });
 
     res.status(200).json(authorQuestions);
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-//get all intentions by a specific user
-app.get("/intention/user/:id", async (req, res) => {
-  const authorId = parseInt(req.params.id);
-
-  if (isNaN(authorId)) {
-    return res.status(400).json({ error: "Invalid user ID" });
-  }
-
-  try {
-    const authorIntention = await prisma.intention.findMany({
-      where: {
-        authorId: authorId
-      }
-    });
-
-    res.status(200).json(authorIntention);
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-//get all three-to-one by a specific user
-app.get("/three-to-one/user/:id", async (req, res) => {
-  const authorId = parseInt(req.params.id);
-
-  if (isNaN(authorId)) {
-    return res.status(400).json({ error: "Invalid user ID" });
-  }
-
-  try {
-    const authorThreeToOne = await prisma.threeToOne.findMany({
-      where: {
-        authorId: authorId
-      }
-    });
-
-    res.status(200).json(authorThreeToOne);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -409,7 +365,7 @@ app.post("/intention", async (req, res) => {
 app.post("/three-to-one", async (req, res) => {
   const newThreeToOne: ThreeToOneObject = req.body;
   const errors = [];
-  const stringKeys = ['worked1','worked2','worked3','improve1'];
+  const stringKeys = ['worked1','worked2','worked3','improve1','authorId'];
   const validKeys = stringKeys;
 
   if(typeof newThreeToOne.worked1 !== 'string'){
